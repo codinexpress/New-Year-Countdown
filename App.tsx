@@ -1,0 +1,134 @@
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import FireworksCanvas from './components/FireworksCanvas';
+import CountdownDisplay from './components/CountdownDisplay';
+import SettingsPanel from './components/SettingsPanel';
+import { AppSettings, TimeRemaining } from './types';
+import { generateFestiveMessage } from './services/geminiService';
+
+const DEFAULT_SETTINGS: AppSettings = {
+  particleDensity: 120,
+  explosionPower: 7,
+  fireworkColors: ['#FF1461', '#18FF92', '#5A87FF', '#FBF38C', '#E91E63', '#9C27B0', '#00BCD4'],
+  soundEnabled: true,
+  autoLaunch: false,
+  targetYear: new Date().getFullYear() + 1,
+  userMessage: "",
+  gravity: 0.05,
+  trailLength: 0.15,
+  particleShape: 'circle',
+  themeName: 'Radiant',
+};
+
+const App: React.FC = () => {
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [aiMessage, setAiMessage] = useState<string>("Initializing Celebration...");
+  const [timeRemaining, setTimeRemaining] = useState<TimeRemaining>({
+    days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: false
+  });
+  const launchTriggerRef = useRef<(() => void) | null>(null);
+
+  const calculateTime = useCallback(() => {
+    const now = new Date();
+    const target = new Date(settings.targetYear, 0, 1, 0, 0, 0);
+    const diff = target.getTime() - now.getTime();
+
+    if (diff <= 0) {
+      return { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true };
+    }
+
+    return {
+      days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+      hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+      minutes: Math.floor((diff / 1000 / 60) % 60),
+      seconds: Math.floor((diff / 1000) % 60),
+      isExpired: false
+    };
+  }, [settings.targetYear]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const newTime = calculateTime();
+      if (newTime.isExpired && !timeRemaining.isExpired) {
+        setSettings(s => ({ ...s, autoLaunch: true, particleDensity: 200 }));
+      }
+      setTimeRemaining(newTime);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [calculateTime, timeRemaining.isExpired]);
+
+  useEffect(() => {
+    const fetchMessage = async () => {
+      const msg = await generateFestiveMessage(settings.targetYear);
+      setAiMessage(msg);
+    };
+    fetchMessage();
+  }, [settings.targetYear]);
+
+  const handleManualTrigger = () => {
+    if (launchTriggerRef.current) {
+      for (let i = 0; i < 8; i++) {
+        setTimeout(() => launchTriggerRef.current?.(), i * 120);
+      }
+    }
+  };
+
+  return (
+    <div className="relative min-h-screen w-full flex flex-col items-center justify-center selection:bg-indigo-500/30 overflow-hidden bg-[#020617]">
+      <FireworksCanvas settings={settings} triggerRef={launchTriggerRef} />
+
+      <div className="relative z-10 text-center px-4 w-full max-w-4xl">
+        <h1 className="text-white/40 text-[10px] md:text-xs uppercase tracking-[0.8em] mb-6 font-light animate-pulse">
+          {timeRemaining.isExpired ? "The Galaxy Celebrates" : `Celestial Countdown to ${settings.targetYear}`}
+        </h1>
+        
+        <div className="mb-14">
+          {timeRemaining.isExpired ? (
+            <div className="animate-bounce">
+              <h2 className="text-6xl md:text-9xl font-black bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 via-pink-500 to-indigo-500 py-4 filter drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+                HAPPY {settings.targetYear}!
+              </h2>
+            </div>
+          ) : (
+            <CountdownDisplay time={timeRemaining} />
+          )}
+        </div>
+
+        <div className="mx-auto backdrop-blur-3xl bg-white/5 p-8 rounded-[2rem] border border-white/10 transition-all hover:bg-white/10 shadow-2xl relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent"></div>
+          
+          <p className="text-gray-100 text-base md:text-xl italic font-light tracking-wide leading-relaxed">
+            "{settings.userMessage || aiMessage}"
+          </p>
+          
+          <div className="mt-6 flex items-center justify-center gap-4">
+            <div className="h-[1px] flex-1 bg-gradient-to-r from-transparent to-indigo-500/20"></div>
+            <span className="text-[9px] text-indigo-400 uppercase tracking-widest font-bold">
+              {settings.userMessage ? 'Personal Reflection' : 'Cosmic Greeting'}
+            </span>
+            <div className="h-[1px] flex-1 bg-gradient-to-l from-transparent to-indigo-500/20"></div>
+          </div>
+        </div>
+        
+        {!timeRemaining.isExpired && (
+          <div className="mt-10 text-white/20 text-[9px] uppercase tracking-[0.4em] font-medium">
+            Launch sequence initiates at midnight
+          </div>
+        )}
+      </div>
+
+      <SettingsPanel 
+        settings={settings} 
+        setSettings={setSettings} 
+        onLaunchTest={handleManualTrigger} 
+      />
+
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-indigo-950/20 to-transparent"></div>
+        <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black to-transparent"></div>
+      </div>
+    </div>
+  );
+};
+
+export default App;
