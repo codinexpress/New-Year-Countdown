@@ -26,11 +26,12 @@ const App: React.FC = () => {
   const [timeRemaining, setTimeRemaining] = useState<TimeRemaining>({
     days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: false
   });
+  const [testTarget, setTestTarget] = useState<Date | null>(null);
   const launchTriggerRef = useRef<(() => void) | null>(null);
 
   const calculateTime = useCallback(() => {
     const now = new Date();
-    const target = new Date(settings.targetYear, 0, 1, 0, 0, 0);
+    const target = testTarget || new Date(settings.targetYear, 0, 1, 0, 0, 0);
     const diff = target.getTime() - now.getTime();
 
     if (diff <= 0) {
@@ -44,16 +45,32 @@ const App: React.FC = () => {
       seconds: Math.floor((diff / 1000) % 60),
       isExpired: false
     };
-  }, [settings.targetYear]);
+  }, [settings.targetYear, testTarget]);
 
   useEffect(() => {
     const timer = setInterval(() => {
       const newTime = calculateTime();
+      
+      // TRIGGER: If we just hit zero (transition from not expired to expired)
       if (newTime.isExpired && !timeRemaining.isExpired) {
-        setSettings(s => ({ ...s, autoLaunch: true, particleDensity: 200 }));
+        setSettings(s => ({ 
+          ...s, 
+          autoLaunch: true, 
+          particleDensity: Math.max(s.particleDensity, 220), // More dense particles for finale
+          explosionPower: Math.max(s.explosionPower, 9) // More powerful explosions
+        }));
+
+        // Trigger a "Grand Finale" initial burst immediately
+        if (launchTriggerRef.current) {
+          for (let i = 0; i < 15; i++) {
+            setTimeout(() => launchTriggerRef.current?.(), i * 80);
+          }
+        }
       }
+      
       setTimeRemaining(newTime);
-    }, 1000);
+    }, 100);
+
     return () => clearInterval(timer);
   }, [calculateTime, timeRemaining.isExpired]);
 
@@ -73,6 +90,18 @@ const App: React.FC = () => {
     }
   };
 
+  const handleMidnightTest = () => {
+    if (timeRemaining.isExpired) {
+      setSettings(s => ({ ...s, autoLaunch: false }));
+    }
+    setTestTarget(new Date(Date.now() + 5500));
+  };
+
+  const handleReset = () => {
+    setTestTarget(null);
+    setSettings(prev => ({ ...prev, autoLaunch: false }));
+  };
+
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-center selection:bg-indigo-500/30 overflow-hidden bg-[#020617]">
       <FireworksCanvas settings={settings} triggerRef={launchTriggerRef} />
@@ -84,10 +113,18 @@ const App: React.FC = () => {
         
         <div className="mb-14">
           {timeRemaining.isExpired ? (
-            <div className="animate-bounce">
-              <h2 className="text-6xl md:text-9xl font-black bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 via-pink-500 to-indigo-500 py-4 filter drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+            <div className="flex flex-col items-center">
+              <h2 className="animate-bounce text-6xl md:text-9xl font-black bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 via-pink-500 to-indigo-500 py-4 filter drop-shadow-[0_0_20px_rgba(255,255,255,0.3)]">
                 HAPPY {settings.targetYear}!
               </h2>
+              {testTarget && (
+                <button 
+                  onClick={handleReset}
+                  className="mt-6 text-[10px] uppercase tracking-widest text-white/40 hover:text-white transition-all border border-white/10 px-6 py-2 rounded-full bg-white/5 backdrop-blur-md hover:bg-white/10 hover:border-white/30 active:scale-95 z-20"
+                >
+                  Exit Preview
+                </button>
+              )}
             </div>
           ) : (
             <CountdownDisplay time={timeRemaining} />
@@ -112,7 +149,7 @@ const App: React.FC = () => {
         
         {!timeRemaining.isExpired && (
           <div className="mt-10 text-white/20 text-[9px] uppercase tracking-[0.4em] font-medium">
-            Launch sequence initiates at midnight
+            {testTarget ? "Previewing launch in 5 seconds..." : "Launch sequence initiates at midnight"}
           </div>
         )}
       </div>
@@ -120,7 +157,8 @@ const App: React.FC = () => {
       <SettingsPanel 
         settings={settings} 
         setSettings={setSettings} 
-        onLaunchTest={handleManualTrigger} 
+        onLaunchTest={handleManualTrigger}
+        onMidnightTest={handleMidnightTest}
       />
 
       <div className="fixed inset-0 pointer-events-none z-0">

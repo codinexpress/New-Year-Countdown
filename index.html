@@ -19,6 +19,25 @@
         canvas {
             display: block;
         }
+        /* Custom Tailwind-like animations */
+        .animate-in {
+            animation-duration: 0.3s;
+            animation-fill-mode: both;
+        }
+        .fade-in {
+            animation-name: fadeIn;
+        }
+        .slide-in-from-bottom-2 {
+            animation-name: slideInBottom;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideInBottom {
+            from { transform: translateY(8px); }
+            to { transform: translateY(0); }
+        }
     </style>
 <script type="importmap">
 {

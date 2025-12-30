@@ -65,7 +65,7 @@ const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef 
 
     const x = Math.random() * canvas.width;
     const y = canvas.height;
-    const targetY = Math.random() * (canvas.height * 0.5) + 50;
+    const targetY = Math.random() * (canvas.height * 0.6) + 50;
     const color = settings.fireworkColors[Math.floor(Math.random() * settings.fireworkColors.length)];
 
     fireworks.current.push({
@@ -73,7 +73,7 @@ const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef 
       y,
       targetY,
       color,
-      speed: Math.random() * 2 + 5,
+      speed: Math.random() * 3 + 6, // Slightly faster ascent
       exploded: false,
       particles: [],
     });
@@ -102,22 +102,34 @@ const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef 
     let lastAutoLaunch = 0;
 
     const animate = (time: number) => {
-      // Trail effect determined by trailLength setting
       ctx.fillStyle = `rgba(2, 6, 23, ${settings.trailLength})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      if (settings.autoLaunch && time - lastAutoLaunch > 1500) {
+      // DRASTICALLY INCREASED AUTO-LAUNCH FREQUENCY
+      // Changed from 1500ms to 400ms for a much grander celebration
+      if (settings.autoLaunch && time - lastAutoLaunch > 400) {
+        // Launch 1-2 fireworks at once for more volume
         launchFirework();
+        if (Math.random() > 0.5) launchFirework(); 
         lastAutoLaunch = time;
       }
 
       fireworks.current.forEach((fw, fwIdx) => {
         if (!fw.exploded) {
           fw.y -= fw.speed;
+          
+          // Draw rocket streak
+          ctx.beginPath();
+          ctx.moveTo(fw.x, fw.y + 10);
+          ctx.lineTo(fw.x, fw.y);
+          ctx.strokeStyle = fw.color;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
           ctx.beginPath();
           ctx.arc(fw.x, fw.y, 2.5, 0, Math.PI * 2);
           ctx.fillStyle = fw.color;
-          ctx.shadowBlur = 10;
+          ctx.shadowBlur = 15;
           ctx.shadowColor = fw.color;
           ctx.fill();
           ctx.shadowBlur = 0;
@@ -131,7 +143,7 @@ const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef 
           fw.particles.forEach((p) => {
             p.vx *= 0.98;
             p.vy *= 0.98;
-            p.vy += settings.gravity; // Custom gravity
+            p.vy += settings.gravity;
             p.x += p.vx;
             p.y += p.vy;
             p.alpha -= p.decay;
