@@ -1,19 +1,32 @@
+
 import React, { useEffect, useRef, useCallback } from 'react';
 import { Particle, Firework, AppSettings, ParticleShape } from '../types.ts';
 import { audioEngine } from '../utils/audio.ts';
 
 interface FireworksCanvasProps {
   settings: AppSettings;
-  triggerRef: React.MutableRefObject<(() => void) | null>;
+  triggerRef: React.MutableRefObject<((x?: number, y?: number) => void) | null>;
 }
 
 const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fireworks = useRef<Firework[]>([]);
+  const isMobile = useRef(window.innerWidth < 768);
+
+  const MAX_PARTICLES = isMobile.current ? 1500 : 5000;
+
+  const getTotalParticles = () => {
+    return fireworks.current.reduce((acc, fw) => acc + fw.particles.length, 0);
+  };
 
   const createParticles = (x: number, y: number, color: string) => {
+    const currentCount = getTotalParticles();
+    if (currentCount >= MAX_PARTICLES) return [];
+
     const particles: Particle[] = [];
-    const count = settings.particleDensity;
+    const available = MAX_PARTICLES - currentCount;
+    const count = Math.min(settings.particleDensity, available);
+    
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = Math.random() * settings.explosionPower + 2;
@@ -36,6 +49,11 @@ const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef 
     ctx.save();
     ctx.translate(p.x, p.y);
     ctx.rotate(p.rotation);
+    
+    // Add glow effect to particles
+    ctx.shadowBlur = settings.particleDensity > 100 ? 5 : 2;
+    ctx.shadowColor = p.color;
+
     ctx.fillStyle = p.color.replace('rgb', 'rgba').replace(')', `, ${p.alpha})`);
     
     if (shape === 'circle') {
@@ -58,21 +76,23 @@ const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef 
     ctx.restore();
   };
 
-  const launchFirework = useCallback(() => {
+  const launchFirework = useCallback((targetX?: number, targetY?: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const x = Math.random() * canvas.width;
+    if (fireworks.current.length > (isMobile.current ? 15 : 30)) return;
+
+    const x = targetX ?? Math.random() * canvas.width;
     const y = canvas.height;
-    const targetY = Math.random() * (canvas.height * 0.6) + 50;
+    const finalTargetY = targetY ?? (Math.random() * (canvas.height * 0.6) + 50);
     const color = settings.fireworkColors[Math.floor(Math.random() * settings.fireworkColors.length)];
 
     fireworks.current.push({
       x,
       y,
-      targetY,
+      targetY: finalTargetY,
       color,
-      speed: Math.random() * 3 + 6,
+      speed: Math.random() * 3 + 7,
       exploded: false,
       particles: [],
     });
@@ -84,6 +104,28 @@ const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef 
     triggerRef.current = launchFirework;
   }, [launchFirework, triggerRef]);
 
+  const handleCanvasClick = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!settings.interactiveEnabled) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    let clientX, clientY;
+    
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
+    }
+    
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    launchFirework(x, y);
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -93,6 +135,7 @@ const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef 
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      isMobile.current = window.innerWidth < 768;
     };
     window.addEventListener('resize', resize);
     resize();
@@ -101,29 +144,33 @@ const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef 
     let lastAutoLaunch = 0;
 
     const animate = (time: number) => {
+      // Background clear with trail
       ctx.fillStyle = `rgba(2, 6, 23, ${settings.trailLength})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      if (settings.autoLaunch && time - lastAutoLaunch > 400) {
+      if (settings.autoLaunch && time - lastAutoLaunch > (isMobile.current ? 700 : 350)) {
         launchFirework();
-        if (Math.random() > 0.5) launchFirework(); 
+        if (!isMobile.current && Math.random() > 0.4) launchFirework(); 
         lastAutoLaunch = time;
       }
 
-      fireworks.current.forEach((fw, fwIdx) => {
+      for (let i = fireworks.current.length - 1; i >= 0; i--) {
+        const fw = fireworks.current[i];
         if (!fw.exploded) {
           fw.y -= fw.speed;
           
+          // Rocket trail
           ctx.beginPath();
-          ctx.moveTo(fw.x, fw.y + 10);
+          ctx.moveTo(fw.x, fw.y + 15);
           ctx.lineTo(fw.x, fw.y);
           ctx.strokeStyle = fw.color;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 3;
           ctx.stroke();
 
+          // Rocket head
           ctx.beginPath();
-          ctx.arc(fw.x, fw.y, 2.5, 0, Math.PI * 2);
-          ctx.fillStyle = fw.color;
+          ctx.arc(fw.x, fw.y, 3, 0, Math.PI * 2);
+          ctx.fillStyle = 'white';
           ctx.shadowBlur = 15;
           ctx.shadowColor = fw.color;
           ctx.fill();
@@ -135,26 +182,28 @@ const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef 
             if (settings.soundEnabled) audioEngine.playExplosion();
           }
         } else {
-          fw.particles.forEach((p) => {
-            p.vx *= 0.98;
-            p.vy *= 0.98;
+          for (let j = fw.particles.length - 1; j >= 0; j--) {
+            const p = fw.particles[j];
+            p.vx *= 0.985;
+            p.vy *= 0.985;
             p.vy += settings.gravity;
             p.x += p.vx;
             p.y += p.vy;
             p.alpha -= p.decay;
-            p.rotation += 0.05;
+            p.rotation += 0.08;
 
             if (p.alpha > 0) {
               drawShape(ctx, p, settings.particleShape);
+            } else {
+              fw.particles.splice(j, 1);
             }
-          });
+          }
 
-          fw.particles = fw.particles.filter(p => p.alpha > 0);
           if (fw.particles.length === 0) {
-            fireworks.current.splice(fwIdx, 1);
+            fireworks.current.splice(i, 1);
           }
         }
-      });
+      }
 
       animationId = requestAnimationFrame(animate);
     };
@@ -169,7 +218,9 @@ const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef 
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 z-0 pointer-events-none"
+      onMouseDown={handleCanvasClick}
+      onTouchStart={handleCanvasClick}
+      className={`absolute inset-0 z-0 ${settings.interactiveEnabled ? 'pointer-events-auto cursor-crosshair' : 'pointer-events-none'}`}
     />
   );
 };

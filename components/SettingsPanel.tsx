@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AppSettings, ParticleShape } from '../types.ts';
 
 interface SettingsPanelProps {
@@ -53,6 +53,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, setSettings, on
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'visuals' | 'physics' | 'content'>('visuals');
 
+  const isMobile = useMemo(() => window.innerWidth < 768, []);
+
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
@@ -68,7 +70,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, setSettings, on
 
   return (
     <>
-      {/* Floating Trigger Button (Visible when closed) */}
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
@@ -79,7 +80,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, setSettings, on
         </button>
       )}
 
-      {/* Dimmer Overlay */}
       {isOpen && (
         <div 
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-opacity duration-500 cursor-pointer"
@@ -87,13 +87,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, setSettings, on
         />
       )}
 
-      {/* Sidebar Container */}
       <div 
         className={`fixed top-0 right-0 h-full z-[110] flex transition-transform duration-500 ease-out pointer-events-auto ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {/* Control Strip & Toggle */}
         <div className="w-12 md:w-16 h-full bg-slate-950/95 backdrop-blur-3xl border-l border-white/10 flex flex-col items-center pt-4 md:pt-8 relative z-20 shadow-2xl">
           <button 
             onClick={() => setIsOpen(false)}
@@ -110,18 +108,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, setSettings, on
           </div>
         </div>
 
-        {/* Sidebar Content Area */}
         <div className="w-[75vw] sm:w-[60vw] md:w-80 h-full bg-slate-900/98 backdrop-blur-2xl border-l border-white/5 flex flex-col shadow-[-40px_0_80px_rgba(0,0,0,0.8)] relative z-10">
-          {/* Header */}
           <div className="p-4 md:p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
             <div>
               <h3 className="text-[9px] md:text-[11px] uppercase tracking-[0.3em] md:tracking-[0.4em] font-black text-gray-200">Engine Config</h3>
               <p className="text-[8px] md:text-[9px] text-indigo-400 mt-1 uppercase font-bold tracking-widest">{activeTab} parameters</p>
             </div>
-            <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse shadow-[0_0_12px_#6366f1]" />
           </div>
 
-          {/* Scrolling Content */}
           <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 md:space-y-10 custom-scrollbar">
             {activeTab === 'visuals' && (
               <div className="space-y-6 md:space-y-10 animate-in fade-in slide-in-from-right-4 duration-300">
@@ -189,11 +183,28 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, setSettings, on
 
             {activeTab === 'physics' && (
               <div className="space-y-6 md:space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                <section className="bg-white/[0.02] p-4 md:p-6 rounded-2xl md:rounded-3xl border border-white/5 flex items-center justify-between">
+                  <div className="flex items-center gap-3 md:gap-5">
+                    <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center transition-all ${settings.interactiveEnabled ? 'text-emerald-400 bg-emerald-500/10' : 'text-gray-500 bg-white/5'}`}>
+                      <i className={`fas fa-hand-pointer text-xs md:text-base`}></i>
+                    </div>
+                    <div>
+                      <span className="text-[10px] md:text-xs font-black text-gray-200 block uppercase tracking-wider">Interactive Tap</span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => updateSetting('interactiveEnabled', !settings.interactiveEnabled)}
+                    className={`w-12 md:w-14 h-6 md:h-7 rounded-full transition-all relative ${settings.interactiveEnabled ? 'bg-emerald-600' : 'bg-gray-700'}`}
+                  >
+                    <div className={`absolute top-1 left-1 w-4 h-4 md:w-5 md:h-5 bg-white rounded-full transition-transform ${settings.interactiveEnabled ? 'translate-x-6 md:translate-x-7' : 'translate-x-0'}`} />
+                  </button>
+                </section>
+
                 <section className="space-y-4 md:space-y-5">
                   {[
                     { label: 'G-Force (Gravity)', key: 'gravity', min: 0, max: 0.2, step: 0.005, unit: 'G' },
-                    { label: 'Explosion Magnitude', key: 'explosionPower', min: 2, max: 15, step: 1, unit: 'kN' },
-                    { label: 'Particle Density', key: 'particleDensity', min: 30, max: 400, step: 10, unit: 'px' },
+                    { label: 'Explosion Magnitude', key: 'explosionPower', min: 2, max: isMobile ? 10 : 18, step: 1, unit: 'kN' },
+                    { label: 'Particle Density', key: 'particleDensity', min: 20, max: isMobile ? 180 : 500, step: 10, unit: 'px' },
                   ].map(item => (
                     <div key={item.key} className="bg-white/[0.02] p-4 md:p-6 rounded-2xl md:rounded-3xl border border-white/5">
                       <div className="flex justify-between items-center mb-3 md:mb-4">
@@ -244,7 +255,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, setSettings, on
             )}
           </div>
 
-          {/* Footer Actions */}
           <div className="p-4 md:p-8 border-t border-white/10 bg-black/30 space-y-3 md:space-y-4">
             <button 
               onClick={onLaunchTest}

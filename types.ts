@@ -29,6 +29,7 @@ export interface AppSettings {
   fireworkColors: string[];
   soundEnabled: boolean;
   autoLaunch: boolean;
+  interactiveEnabled: boolean;
   targetYear: number;
   userMessage: string;
   gravity: number;
