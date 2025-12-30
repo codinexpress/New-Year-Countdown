@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { AppSettings, ParticleShape } from '../types';
+import { AppSettings, ParticleShape } from '../types.ts';
 
 interface SettingsPanelProps {
   settings: AppSettings;
@@ -255,29 +254,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ settings, setSettings, on
           </div>
         </div>
       </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.08);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.15);
-        }
-        @keyframes slideInRight {
-          from { transform: translateX(30px); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-        .slide-in-from-right-4 {
-          animation: slideInRight 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-      `}} />
     </>
   );
 };

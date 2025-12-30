@@ -1,7 +1,6 @@
-
 import React, { useEffect, useRef, useCallback } from 'react';
-import { Particle, Firework, AppSettings, ParticleShape } from '../types';
-import { audioEngine } from '../utils/audio';
+import { Particle, Firework, AppSettings, ParticleShape } from '../types.ts';
+import { audioEngine } from '../utils/audio.ts';
 
 interface FireworksCanvasProps {
   settings: AppSettings;
@@ -73,7 +72,7 @@ const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef 
       y,
       targetY,
       color,
-      speed: Math.random() * 3 + 6, // Slightly faster ascent
+      speed: Math.random() * 3 + 6,
       exploded: false,
       particles: [],
     });
@@ -105,10 +104,7 @@ const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef 
       ctx.fillStyle = `rgba(2, 6, 23, ${settings.trailLength})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // DRASTICALLY INCREASED AUTO-LAUNCH FREQUENCY
-      // Changed from 1500ms to 400ms for a much grander celebration
       if (settings.autoLaunch && time - lastAutoLaunch > 400) {
-        // Launch 1-2 fireworks at once for more volume
         launchFirework();
         if (Math.random() > 0.5) launchFirework(); 
         lastAutoLaunch = time;
@@ -118,7 +114,6 @@ const FireworksCanvas: React.FC<FireworksCanvasProps> = ({ settings, triggerRef 
         if (!fw.exploded) {
           fw.y -= fw.speed;
           
-          // Draw rocket streak
           ctx.beginPath();
           ctx.moveTo(fw.x, fw.y + 10);
           ctx.lineTo(fw.x, fw.y);

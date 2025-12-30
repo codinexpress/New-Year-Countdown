@@ -1,10 +1,14 @@
-
 import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateFestiveMessage = async (year: number): Promise<string> => {
   try {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      console.warn("API Key missing, returning fallback message.");
+      return `Wishing you a spectacular and vibrant ${year}!`;
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Generate a poetic and inspiring 10-word New Year's greeting for the year ${year}. Focus on themes of cosmic beauty, fireworks, and new beginnings.`,
@@ -13,7 +17,6 @@ export const generateFestiveMessage = async (year: number): Promise<string> => {
       }
     });
 
-    // Use optional chaining to safely handle cases where response.text might be undefined (e.g., safety filter triggers)
     const text = response.text;
     return text?.trim() || `Welcome to ${year}: A year of endless possibilities.`;
   } catch (error) {

@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import FireworksCanvas from './components/FireworksCanvas';
-import CountdownDisplay from './components/CountdownDisplay';
-import SettingsPanel from './components/SettingsPanel';
-import { AppSettings, TimeRemaining } from './types';
-import { generateFestiveMessage } from './services/geminiService';
+import FireworksCanvas from './components/FireworksCanvas.tsx';
+import CountdownDisplay from './components/CountdownDisplay.tsx';
+import SettingsPanel from './components/SettingsPanel.tsx';
+import { AppSettings, TimeRemaining } from './types.ts';
+import { generateFestiveMessage } from './services/geminiService.ts';
 
 const DEFAULT_SETTINGS: AppSettings = {
   particleDensity: 120,
@@ -28,6 +27,7 @@ const App: React.FC = () => {
   });
   const [testTarget, setTestTarget] = useState<Date | null>(null);
   const launchTriggerRef = useRef<(() => void) | null>(null);
+  const hasTriggeredMidnight = useRef(false);
 
   const calculateTime = useCallback(() => {
     const now = new Date();
@@ -52,27 +52,32 @@ const App: React.FC = () => {
       const newTime = calculateTime();
       
       // TRIGGER: If we just hit zero (transition from not expired to expired)
-      if (newTime.isExpired && !timeRemaining.isExpired) {
+      if (newTime.isExpired && !hasTriggeredMidnight.current) {
+        hasTriggeredMidnight.current = true;
         setSettings(s => ({ 
           ...s, 
           autoLaunch: true, 
-          particleDensity: Math.max(s.particleDensity, 220), // More dense particles for finale
-          explosionPower: Math.max(s.explosionPower, 9) // More powerful explosions
+          particleDensity: Math.max(s.particleDensity, 220),
+          explosionPower: Math.max(s.explosionPower, 9)
         }));
 
         // Trigger a "Grand Finale" initial burst immediately
         if (launchTriggerRef.current) {
-          for (let i = 0; i < 15; i++) {
-            setTimeout(() => launchTriggerRef.current?.(), i * 80);
+          for (let i = 0; i < 20; i++) {
+            setTimeout(() => launchTriggerRef.current?.(), i * 60);
           }
         }
+      }
+      
+      if (!newTime.isExpired) {
+        hasTriggeredMidnight.current = false;
       }
       
       setTimeRemaining(newTime);
     }, 100);
 
     return () => clearInterval(timer);
-  }, [calculateTime, timeRemaining.isExpired]);
+  }, [calculateTime]);
 
   useEffect(() => {
     const fetchMessage = async () => {
@@ -91,14 +96,13 @@ const App: React.FC = () => {
   };
 
   const handleMidnightTest = () => {
-    if (timeRemaining.isExpired) {
-      setSettings(s => ({ ...s, autoLaunch: false }));
-    }
+    hasTriggeredMidnight.current = false;
     setTestTarget(new Date(Date.now() + 5500));
   };
 
   const handleReset = () => {
     setTestTarget(null);
+    hasTriggeredMidnight.current = false;
     setSettings(prev => ({ ...prev, autoLaunch: false }));
   };
 
@@ -120,7 +124,7 @@ const App: React.FC = () => {
               {testTarget && (
                 <button 
                   onClick={handleReset}
-                  className="mt-6 text-[10px] uppercase tracking-widest text-white/40 hover:text-white transition-all border border-white/10 px-6 py-2 rounded-full bg-white/5 backdrop-blur-md hover:bg-white/10 hover:border-white/30 active:scale-95 z-20"
+                  className="mt-6 text-[10px] uppercase tracking-widest text-white/40 hover:text-white transition-all border border-white/10 px-6 py-2 rounded-full bg-white/5 backdrop-blur-md hover:bg-white/10 hover:border-white/30 active:scale-95 pointer-events-auto"
                 >
                   Exit Preview
                 </button>
